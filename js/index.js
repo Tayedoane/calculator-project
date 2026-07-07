@@ -1,58 +1,103 @@
+/* this abstract classs stores a repesentation of an operation
+   
+  each operation can have as many, or as little operands as needed, 
+  
+  it's priority is ment to be a number signifying it's respective pemdas
+  order, calculate is the literall operation */
 class Operation {
- priotriy;
- calculate;
+ priority;
+ correspondingFunc;
+ 
+  constructor(correspondingFunc, priority) { 
+    this.priority = priority;
+    this.correspondingFunc = correspondingFunc;
+  }
 
- constructor(priority, calculate){
-  this.priotriy = priority;
-  this.calculate = calculate;
- }
+  /* takes in the relative position of the element in the innerArr, and completes
+   it's operation with respect to the elements around 
+   EX: for [3, +, 2], it's pos would be one, and would use 3 and 2 as operands
+   
+   it also updates arr so any used elements are deleted, and replaced with the result of 
+   the operation so [3, +, 2] -> [5]*/
+  calculate(positon, arr){
+    throw new Error("Need to override this function, this class is abstract")
+  }
+
+  
+  get correspondingFunc(){
+    return this.correspondingFunc;
+  }
+  
+  get priority(){
+    return this.priority;
+  }
+  
 }
 
-const Operations = Object.freeze({
- ADD: new Operation(1 , (operand1, operand2) => operand1 + operand2),
- SUB: new Operation(1, (operand1, operand2) => operand1 - operand2),
- DIV: new Operation(2, (operand1, operand2) => operand1 / operand2),
- MUL: new Operation(2, (operand1, operand2) => operand1 * operand2),
-});
+class CenterOperation extends Operation {
+  constructor(calculate, priority) {
+    super(calculate, priority);
+  }
+
+  /* for any operator in the format:
+  operand1 operator operand2*/
+  calculate(position, arr) {
+    if (position + 1 > arr.length || position - 1 < 0 ||
+      isNaN(arr[position + 1]) || isNaN(arr[position - 1]))
+      throw new Error("invalid operation");
+    
+    const operationValue = super.correspondingFunc(arr[position - 1], arr[position + 1]);
+    arr.splice(position - 1, 3, operationValue);
+    console.log("Here is the result:" + arr);
+  }
+}
+
+
+
+
+
+/* seperate from individual operation, stores every single created
+ operaration*/
+let Operations = {
+ ADD: new CenterOperation((operand1, operand2) => operand1 + operand2, 1),
+ SUB: new CenterOperation((operand1, operand2) => operand1 - operand2, 1),
+ DIV: new CenterOperation((operand1, operand2) => operand1 / operand2, 2),
+ MUL: new CenterOperation((operand1, operand2) => operand1 * operand2, 2),
+};
 
 
 class Equation {
- #innerArr;
+ result;
 
 
- /*TODO, make it so operations are based on number of args in calculate function,
-   I.E x^2 or sin(x) need only one operand, current method only supports having 2 operands */
+
+ /* creates an finds value for a given equation, invalid equation throws errors*/
  constructor(equation) {
-  equation = equation.replace(/ /g, '');
-  this.#innerArr = [];
-
-  if (equation.length < 3){
-   throw new Error('Equation not complete')
-  }
+  const parsedArr = [];
 
   const tokenizedEq = equation.match(/[0-9]+|[-+/*]+/gi);
   console.log(tokenizedEq);
 
-  this.#validateOperand(tokenizedEq[0])
-  this.#innerArr.push(tokenizedEq[0]);
+  tokenizedEq.forEach(token => {
+    parsedArr.push(isNaN(token) ? this.#parseOperator(token) : Number(token))
+  });
 
-  this.#innerArr.push(this.#parseOperator(tokenizedEq[1]));
-
-  this.#innerArr.push(this.#validateOperand(tokenizedEq[2]));
-
-  for (let i = 3; i < tokenizedEq.length; i += 2) {
-   this.#innerArr.push(this.#parseOperator(tokenizedEq[i]));
-
-   this.#innerArr.push(this.#validateOperand(tokenizedEq[i + 1]));
-  } 
+  this.result = this.#evaluate(parsedArr);
+  
  }
+
+ get result(){
+  return this.result;
+ }
+
+ 
 
  /* converts any corresponding char values to symbols,
   * 
   * also checks for any invalid operand input
   */
   #parseOperator(operator) {
-  console.log(Operations.ADD);
+  console.log(operator);
   switch (operator) {
    case '+':
      return Operations.ADD;
@@ -67,20 +112,25 @@ class Equation {
   }
  }
 
- /* short validation for operands as well as parathesis*/
- #validateOperand(operand) { 
-  console.log(operand)
-   if (isNaN(operand))
-    throw new Error('Invalid operand');
-   return operand;
- }
+/* this function is made to convert the inner array
+ readble repesentation of an equation into a single
+ value */
+ #evaluate(parsedArr) {
+  console.log(parsedArr);
+  //First find highest priority operator
+  while (parsedArr.length > 1) {
+    /* this finds the highest priority operation, with left operations taking priority */
+    const highPriorityOperatorIndex = parsedArr.reduce((maxIndex, curr, currIndex, arr) => {
+      isNaN(curr) && (maxIndex === -1 || curr.priority > arr[maxIndex].priority)
+       ? currIndex : maxIndex}, -1);
+    console.log( "my index: " + highPriorityOperatorIndex);
+    if (highPriorityOperatorIndex === -1)
+      throw new Error('invalid equation');
+    const currOperator = parsedArr[highPriorityOperatorIndex];
 
- evaluate() {
-
- }
-
- printInner() {
-  console.log(this.#innerArr);
+    currOperator.calculate(highPriorityOperatorIndex, parsedArr);
+  }
+  return parsedArr[0];
  }
 }
  
@@ -89,16 +139,12 @@ class Equation {
 let input = document.getElementById('input');
 let output = document.getElementById('output');
 
-function updateOutput() {
- output.textContent = input.value;
+function updateOutput(result) {
+ output.textContent = result;
 }
 
 input.oninput = () => {
  console.log(input.value)
- var val = new Equation(input.value);
- val.printInner();
- 
- updateOutput();
+ updateOutput(new Equation(input.value).result);
 }
-
 
