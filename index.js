@@ -31,6 +31,7 @@ class Operation {
   get priority(){
     return this.priority;
   }
+
   
 }
 
@@ -50,7 +51,6 @@ class CenterOperation extends Operation {
     
     const operationValue = super.correspondingFunc(arr[position - 1], arr[position + 1]);
     arr.splice(position - 1, 3, operationValue);
-    console.log("Here is the result:" + arr);
   }
 
 }
@@ -69,7 +69,6 @@ class RightUnaryOperation extends Operation {
 
 
     const operationValue = super.correspondingFunc(arr[position - 1]);
-    console.log(operationValue);
     arr.splice(position -1, 2, operationValue);
   }
 }
@@ -88,30 +87,52 @@ class LeftUnaryOperation extends Operation {
 
 
     const operationValue = super.correspondingFunc(arr[position + 1]);
-    console.log(operationValue);
     arr.splice(position, 2, operationValue);
   }
 }
 
+/* done to allow symbol - to be either a negation operator, or subtraction
+    value  */
+class NegationOperation extends Operation{
+  constructor(correspondingFunc, priority){
+    super(correspondingFunc, priority);
+  }
+
+  //Overide
+  calculate(position, arr){
+    let operationValue;
+    if (position + 1 > arr.length || isNaN(arr[position + 1]))
+      throw new Error("invalid operation");
+    if (position - 1 < 0 || isNaN(arr[position - 1])){
+      operationValue = super.correspondingFunc(arr[position + 1]);
+      arr.splice(position, 2, operationValue)
+    }
+    else 
+      arr.splice(position , 1, Operations.SUB);
+  }
+
+}
+
+
+
 /* for any operator in format 
   operator(operand1, operand2...)
 */
-class funcOperation extends Operation {
+class FuncOperation extends Operation {
   constructor(correspondingFunc, priority){
     super(correspondingFunc, priority);
   }
 
   //overide
   calculate(position, arr) {
-    console.log(arr[position + 1].length);
     if (position + 1 > arr.length || !Array.isArray(arr[position + 1]
     || super.correspondingFunc.length !== arr[position + 1].length))
       throw new Error("invalid operation");
     
-    /*At some point I want functions to be able to have functions, but for now, only take 
-    numbers as input 
-    */
-    arr.forEach(elem => Number(elem)); 
+
+    arr[position + 1].forEach((elem, index, arr) => {
+      arr[index] = new Equation(elem).result;
+    })
     const operationValue = super.correspondingFunc(...arr[position + 1]);
     arr.splice(position, 2, operationValue);
   }
@@ -141,38 +162,58 @@ let Operations = {
   COS: new LeftUnaryOperation(operand => Math.cos(operand), 3),
   TAN: new LeftUnaryOperation(operand => Math.tan(operand), 3),
   SQRT: new LeftUnaryOperation(operand => operand ** 0.5, 3),
-  ROOT: new funcOperation((index, radican) => radican ** (1 / index))
+  ROOT: new FuncOperation((index, radican) => radican ** (1 / index)),
+  SQ: new LeftUnaryOperation(base => base ** 2, 3),
+  ABS: new LeftUnaryOperation(operand => Math.abs(operand), 3),
+  NEG: new NegationOperation(operand => -operand, 4),
+  LOG: new LeftUnaryOperation(operand => Math.log10(operand), 3),
+  LOGB: new FuncOperation((base, argument) => Math.log(argument) / Math.log(base), 3),
+  DIST: new FuncOperation((x1, y1, x2, y2) =>((x2 - x1) ** 2 + (y2 - y1) ** 2) ** 0.5, 3, 3),
+  LSHIFT: new CenterOperation ((operand, bits) => operand << bits, 2), 
+  RSHIFT: new CenterOperation ((operand, bits) => operand >> bits, 2),
+  ROUND: new LeftUnaryOperation ((operand) => Math.round(operand), 3),
+  ASIN: new LeftUnaryOperation(operand => Math.asin(operand), 3),
+  ACOS: new LeftUnaryOperation(operand => Math.acos(operand), 3),
+  ATAN: new LeftUnaryOperation(operand => Math.atan(operand), 3),
+  SCINOTP: new CenterOperation((coefficient, exponent) => coefficient * 10 ** exponent, 5),//scientific notation pos
+  SCINOTN: new CenterOperation((coefficient, exponent) => coefficient * 10 ** -exponent, 5)// scientific notation neg
 };
 
 
+/* 
+ * This class takes in a string mathmatical expression, and
+ * stores it's result into a result class. Any string expression
+ *  that is not a valid expression throws an error
+ */
 class Equation {
  result;
 
 
 
- /* creates an finds value for a given equation, invalid equation throws errors*/
+ /* creates and finds value for a given equation, invalid equation throws errors*/
  constructor(equation) {
+  equation = equation.replaceAll(' ','');
   const parsedArr = [];
 
   // goes through every parathesis in the array and replaces with an equation's value
 
   /* need while loop as (3 + 3 * (1 * 2)) first solves center most parathesis, but not
-    outter ones, so loop untill all parthesis equations have been solved
+    outter ones, so loop untill all parthesis equations have been solved, parathesis does
+    not includes , so function input can be parsed through
   */
   const groupingSymbolsPattern = /\([^,()]+\)|\[[^\[\]]+\]|{[^{}]+}/g;
   while (equation.match(groupingSymbolsPattern) !== null)
     equation = equation.replace(groupingSymbolsPattern, group => 
-  new Equation(group.replace(/[\(\)\[\]{}]/g, '')).result);  
+  new Equation(group.substring(1, group.length -1)).result);  
           
   console.log(equation);
   const tokenizedEq = 
-  equation.match(/\([^()]+\)+|[0-9\.]+|[-+\/*^!%]+|sin+|tan+|cos+|sqrt+|root+/gi);
-  /* to make sure that anything doesnt get tokenized, then it considered invalid*/
-  console.log(tokenizedEq);
-  //TODO, make it so it compares and ignores whotespace properly
-  if (equation.replaceAll(' ','') != tokenizedEq.join(''))
+  equation.match(/\([^()]+\)+|[0-9\.]+|e-+|e\++|-+|\/+|\*+|\^+|!+|%+|sin+|tan+|cos+|sqrt+|root+|sq+|abs+|logb+|log+|dist+|>>+|<<+|round+|asin+|acos+|atan+|ℇ+|π+/gi);
+  
+
+  /* to make sure that anything doesnt get tokenized, then the equation is considered invalid*/
+  if (equation != tokenizedEq.join(''))
     throw new Error('invalid equation');
-  console.log(tokenizedEq);
 
   tokenizedEq.forEach(token => {
     parsedArr.push(!isNaN(token) ? Number(token): token.includes(',') ? 
@@ -189,16 +230,14 @@ class Equation {
 
 
  /* converts any corresponding char values to symbols,
-  * 
-  * also checks for any invalid operand input
   */
   #parseOperator(operator) {
-    console.log(operator);
+    console.log(operator.toUpperCase());
     switch (operator.toUpperCase()) {
       case '+':
       return Operations.ADD;
       case '-':
-        return Operations.SUB;
+        return Operations.NEG;
       case '*':
         return Operations.MUL;
       case '/':
@@ -209,19 +248,20 @@ class Equation {
         return Operations.FAC;
       case '%':
         return Operations.PER;
-      case 'SIN':
-        return Operations.SIN;
-      case 'COS':
-        return Operations.COS;
-      case 'TAN':
-        return Operations.TAN;
-      case 'SQRT':
-        return Operations.SQRT;
-      case 'ROOT':
-        return Operations.ROOT;
-      
-    default:
-      throw new Error('invalid operator');
+      case '>>':
+        return Operations.RSHIFT;
+      case '<<':
+        return Operations.LSHIFT;
+      case 'E+':
+        return Operations.SCINOTP;
+      case 'E-':
+        return Operations.SCINOTN;
+      case 'ℇ':
+        return Math.E;
+      case 'Π'://PIs upper case
+        return Math.PI;
+      default:
+        return Operations[operator.toUpperCase()]
     }
   }
 
@@ -230,40 +270,59 @@ class Equation {
     return funcInput.substring(1, funcInput.length -1 ).split(',');
 }
 
-/* this function is made to convert the inner array
- readble repesentation of an equation into a single
- value */
+/* this function takes a parsed arr that repesentan expression, and returns the result */
  #evaluate(parsedArr) {
-  console.log(parsedArr);
   //First find highest priority operator
   while (parsedArr.length > 1) {
     /* this finds the highest priority operation, with left operations taking priority */
     const highPriorityOperatorIndex = parsedArr.reduce((maxIndex, curr, currIndex, arr) => {
       return isNaN(curr) && (maxIndex === -1 || curr.priority > arr[maxIndex].priority)
        ? currIndex : maxIndex}, -1);
-    console.log( "my index: " + highPriorityOperatorIndex);
     if (highPriorityOperatorIndex === -1)
       throw new Error('invalid equation');
     const currOperator = parsedArr[highPriorityOperatorIndex];
 
     currOperator.calculate(highPriorityOperatorIndex, parsedArr);
   }
+
+  console.log(parsedArr[0]);
+  if (isNaN(parsedArr[0]))
+    throw new Error("Invalid equation")
   return parsedArr[0];
  }
-
-}
- 
-
-
-let input = document.getElementById('input');
-let output = document.getElementById('output');
-
-function updateOutput(result) {
- output.textContent = result;
 }
 
-input.oninput = () => {
- console.log(input.value)
- updateOutput(new Equation(input.value).result);
+const input = document.getElementById('input');
+const buttons = document.querySelectorAll('#buttons button');
+
+
+
+
+input.onkeydown = event => {
+  console.log(event.key);
+  if (event.key === 'Enter'){
+    try {
+      input.value = new Equation(input.value).result;
+    } catch (Err) {
+      alert("Invalid equation");
+    }
+  }
 }
 
+buttons.forEach(button => {
+  if (button.dataset.val === "ENTER"){
+    try {
+      button.addEventListener('click', button => {input.value = new Equation(input.value).result});
+    } catch(Err) {
+      alert("Invalid equation");
+    }
+  }
+  else {
+    button.addEventListener('click', button => {
+
+    input.value = input.value.slice(0, input.selectionStart) +
+     button.srcElement.dataset.val + input.value.slice(input.selectionEnd);
+    input.focus();
+  })
+  }
+})
