@@ -320,10 +320,12 @@ buttons.forEach(button => {
   }
   else {
     button.addEventListener('click', button => {
-
+    const endPos = input.selectionStart + button.srcElement.dataset.val.length;
     input.value = input.value.slice(0, input.selectionStart) +
      button.srcElement.dataset.val + input.value.slice(input.selectionEnd);
     input.focus();
+    input.selectionStart = endPos;
+    input.selectionEnd = endPos;
   })
   }
 })
