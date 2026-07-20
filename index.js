@@ -208,10 +208,11 @@ class Equation {
           
   console.log(equation);
   const tokenizedEq = 
-  equation.match(/\([^()]+\)+|[0-9\.]+|e-+|e\++|-+|\/+|\*+|\^+|!+|%+|sin+|tan+|cos+|sqrt+|root+|sq+|abs+|logb+|log+|dist+|>>+|<<+|round+|asin+|acos+|atan+|ℇ+|π+/gi);
+  equation.match(/\([^()]+\)+|[0-9\.]+|e-+|e\++|\++|-+|\/+|\*+|\^+|!+|%+|sin+|tan+|cos+|sqrt+|root+|sq+|abs+|logb+|log+|dist+|>>+|<<+|round+|asin+|acos+|atan+|ℇ+|π+/gi);
   
 
   /* to make sure that anything doesnt get tokenized, then the equation is considered invalid*/
+  console.log(tokenizedEq.join(''));
   if (equation != tokenizedEq.join(''))
     throw new Error('invalid equation');
 
